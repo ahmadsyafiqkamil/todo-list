@@ -2,5 +2,10 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+default_chain = "anvil"
+
+[rpc_endpoints]
+sepolia = "https://sepolia.infura.io/v3/003407eef50141a2af1c6b8b39ec0b2c"
+
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

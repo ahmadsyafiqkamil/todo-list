@@ -26,6 +26,11 @@ CONTRACT_ABI = [
                "name":"_content",
                "type":"string",
                "internalType":"string"
+            },
+            {
+               "name":"_title",
+               "type":"string",
+               "internalType":"string"
             }
          ],
          "outputs":[
@@ -81,6 +86,11 @@ CONTRACT_ABI = [
                      "internalType":"uint256"
                   },
                   {
+                     "name":"title",
+                     "type":"string",
+                     "internalType":"string"
+                  },
+                  {
                      "name":"content",
                      "type":"string",
                      "internalType":"string"
@@ -110,6 +120,12 @@ CONTRACT_ABI = [
                "type":"uint256",
                "indexed":"false",
                "internalType":"uint256"
+            },
+            {
+               "name":"title",
+               "type":"string",
+               "indexed":"false",
+               "internalType":"string"
             },
             {
                "name":"content",
@@ -172,6 +188,7 @@ allow_origins=["http://localhost:3000"],  # URL Next.js
 )
 
 class NoteRequest(BaseModel):
+    title: str
     note: str
 
 @app.get("/")
@@ -185,7 +202,7 @@ def add_note(request: NoteRequest):
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
 
-        tx = contract.functions.addTask(request.note).build_transaction({
+        tx = contract.functions.addTask(request.note, request.title).build_transaction({
             "from": sender_address,
             "nonce": w3.eth.get_transaction_count(sender_address),
             "gas": 2000000,
@@ -212,7 +229,7 @@ def get_notes():
         tasks = contract.functions.getTasks().call({"from":sender_address})
 
         # Konversi hasil ke format JSON-friendly
-        notes = [{"id": task[0], "content": task[1], "completed": task[2]} for task in tasks]
+        notes = [{"id": task[0], "title": task[1], "content": task[2], "completed": task[3]} for task in tasks]
 
         return {"notes": notes}
 

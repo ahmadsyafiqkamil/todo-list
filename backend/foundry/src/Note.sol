@@ -10,6 +10,7 @@ contract Note{
     }
 
     mapping(address => Task[]) private userTasks;
+    uint private taskCounter;
 
     event TaskAdded(address indexed user, uint taskId, string title, string content);
     event TaskCompleted(address indexed user, uint taskId);
@@ -18,7 +19,9 @@ contract Note{
     function addTask(string memory _content, string memory _title) public {
         require(bytes(_content).length > 0, "Task content cannot be empty");
 
-        uint taskId = userTasks[msg.sender].length;
+        // uint taskId = userTasks[msg.sender].length;
+        taskCounter++; // ✅ Increment global counter setiap kali ada task baru
+        uint taskId = taskCounter; // Gunakan ID yang dijamin unik
 
         userTasks[msg.sender].push(Task(taskId, _title, _content, false));
 
@@ -26,7 +29,8 @@ contract Note{
     }
 
     function completeTask(uint _taskId) public {
-        require(_taskId < userTasks[msg.sender].length, "Invalid task id");
+        uint index = findTaskIndex(_taskId);
+        require(index < userTasks[msg.sender].length, "Invalid task id");
         
         userTasks[msg.sender][_taskId].completed = true;
         
@@ -35,7 +39,8 @@ contract Note{
     }
 
     function deleteTask(uint _taskId) public {
-        require(_taskId < userTasks[msg.sender].length, "Invalid task id");
+        uint index = findTaskIndex(_taskId);
+        require(index < userTasks[msg.sender].length, "Invalid task id");
 
         uint lastIndex = userTasks[msg.sender].length - 1;
         userTasks[msg.sender][_taskId] = userTasks[msg.sender][lastIndex];
@@ -47,6 +52,15 @@ contract Note{
 
     function getTasks() public view returns (Task[] memory){
         return userTasks[msg.sender];
+    }
+
+    function findTaskIndex(uint _taskId) internal view returns (uint) {
+        for (uint i = 0; i < userTasks[msg.sender].length; i++) {
+            if (userTasks[msg.sender][i].id == _taskId) {
+                return i;
+            }
+        }
+        revert("Task ID not found");
     }
 
 }

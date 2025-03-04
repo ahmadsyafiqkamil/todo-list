@@ -228,6 +228,9 @@ def get_notes():
         # Panggil fungsi smart contract `getTasks()`
         tasks = contract.functions.getTasks().call({"from":sender_address})
 
+        if not tasks:
+            return {"notes":[]}
+
         # Konversi hasil ke format JSON-friendly
         notes = [{"id": task[0], "title": task[1], "content": task[2], "completed": task[3]} for task in tasks]
 

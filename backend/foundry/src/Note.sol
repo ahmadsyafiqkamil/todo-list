@@ -64,5 +64,3 @@ contract Note{
     }
 
 }
-
-

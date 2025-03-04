@@ -51,4 +51,3 @@ contract Note{
 }
 
 
-// https://chatgpt.com/c/67c417de-0324-8012-b2f4-ab5a9b1f0710

@@ -191,9 +191,34 @@ class NoteRequest(BaseModel):
     title: str
     note: str
 
+class AuthWithMetamask(BaseModel):
+    address: str
+    signature: str
+    message: str
+
 @app.get("/")
 def home():
     return {"message":"Web3 + FastAPI is running"}
+
+@app.post("/login")
+def login_with_metamask(data: AuthWithMetamask):
+    try:
+        # Pastikan pesan yang ditandatangani di frontend sama di backend
+        expected_message = "Sign in to Web3 Notes App"
+
+        if data.message != expected_message:
+            raise HTTPException(status_code=400, detail="Invalid message")
+
+        message = encode_defunct(text=data.message)
+        recovered_address = Account.recover_message(message, signature=data.signature)
+
+        if recovered_address.lower() != data.address.lower():
+            raise HTTPException(status_code=400, detail="Invalid signature")
+        
+        return {"message": "Login successful", "address": recovered_address}
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))  # Pastikan error bisa terbaca
 
 
 @app.post("/add-note")

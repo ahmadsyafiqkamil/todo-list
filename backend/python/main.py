@@ -106,6 +106,31 @@ CONTRACT_ABI = [
          "stateMutability":"view"
       },
       {
+         "type":"function",
+         "name":"updateTask",
+         "inputs":[
+            {
+               "name":"_taskId",
+               "type":"uint256",
+               "internalType":"uint256"
+            },
+            {
+               "name":"_newTitle",
+               "type":"string",
+               "internalType":"string"
+            },
+            {
+               "name":"_newContent",
+               "type":"string",
+               "internalType":"string"
+            }
+         ],
+         "outputs":[
+            
+         ],
+         "stateMutability":"nonpayable"
+      },
+      {
          "type":"event",
          "name":"TaskAdded",
          "inputs":[
@@ -173,6 +198,37 @@ CONTRACT_ABI = [
             }
          ],
          "anonymous":"false"
+      },
+      {
+         "type":"event",
+         "name":"TaskUpdated",
+         "inputs":[
+            {
+               "name":"user",
+               "type":"address",
+               "indexed":"true",
+               "internalType":"address"
+            },
+            {
+               "name":"taskId",
+               "type":"uint256",
+               "indexed":"false",
+               "internalType":"uint256"
+            },
+            {
+               "name":"newTitle",
+               "type":"string",
+               "indexed":"false",
+               "internalType":"string"
+            },
+            {
+               "name":"newContent",
+               "type":"string",
+               "indexed":"false",
+               "internalType":"string"
+            }
+         ],
+         "anonymous":"false"
       }
    ]
 
@@ -196,6 +252,11 @@ class AuthWithMetamask(BaseModel):
     signature: str
     message: str
 
+class UpdateNoteRequest(BaseModel):
+    task_id: int
+    new_title: str
+    new_content: str
+   
 @app.get("/")
 def home():
     return {"message":"Web3 + FastAPI is running"}
@@ -244,7 +305,28 @@ def add_note(request: NoteRequest):
     
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+@app.post("/update-note")
+def update_note(request: UpdateNoteRequest):
+    try:
+        account = Account.from_key(PRIVATE_KEY)
+        sender_address = account.address
+
+        tx = contract.functions.updateTask(request.task_id, request.new_title, request.new_content ).build_transaction({
+            "from": sender_address,
+            "nonce": w3.eth.get_transaction_count(sender_address),
+            "gas": 3000000,
+            "gasPrice": w3.to_wei("5","gwei")
+        })
+
+        signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
+    except:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.get("/get-notes")
 def get_notes():
     try:

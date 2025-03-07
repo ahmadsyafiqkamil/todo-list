@@ -46,6 +46,7 @@ export default function Home() {
 
       if (response.data.message === "Login successful") {
         setAccount(address);
+        localStorage.setItem("account", address);
         alert("Login successful");
       } else {
         alert("Login failed");
@@ -55,10 +56,16 @@ export default function Home() {
     }
   };
 
+  const logout = () =>{
+    localStorage.removeItem("account");
+    setAccount(null)
+  }
+
   // Fungsi untuk mengambil data notes dari API
   const fetchNotes = async () => {
     try {
       const response = await api.get("/get-notes");
+      console.log(response)
       setNotes(response.data.notes);
     } catch (error) {
       console.error("Error fetching notes:", error);
@@ -67,6 +74,10 @@ export default function Home() {
 
   useEffect(() => {
     fetchNotes();
+    const savedAccount = localStorage.getItem("account")
+    if (savedAccount){
+      setAccount(savedAccount);
+    }
   }, []);
 
   // Fungsi untuk menambahkan note
@@ -112,7 +123,13 @@ export default function Home() {
       {/* Tombol Login MetaMask */}
       <div className="flex justify-center mb-4">
         {account ? (
-          <p className="text-green-600">Connected: {account}</p>
+          <div className="flex items-center">
+            <p className="text-green-600 mr-4">Connected: {account}</p>
+            <button onClick={logout} className="bg-red-500 text-white px-4 py-2 rounded">
+              Logout
+            </button>
+          </div>
+
         ) : (
           <button
             onClick={loginWithMetamask}

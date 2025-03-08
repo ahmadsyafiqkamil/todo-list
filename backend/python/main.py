@@ -300,11 +300,16 @@ def add_note(request: NoteRequest):
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        if tx_receipt["status"] == 0:
+            raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")
 
         return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
     
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_message = str(e)
+        if "revert" in error_message:
+            error_message = error_message.split("revert")[-1].strip
+        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
 
 @app.post("/update-note")
 def update_note(request: UpdateNoteRequest):
@@ -322,9 +327,16 @@ def update_note(request: UpdateNoteRequest):
         signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        
+        if tx_receipt["status"] == 0:
+            raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")
+
         return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
-    except:
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        error_message = str(e)
+        if "revert" in error_message:
+            error_message = error_message.split("revert")[-1].strip
+        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
 
 
 @app.get("/get-notes")
@@ -344,7 +356,10 @@ def get_notes():
         return {"notes": notes}
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_message = str(e)
+        if "revert" in error_message:
+            error_message = error_message.split("revert")[-1].strip
+        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
     
 @app.delete("/delete-note/{task_id}")
 def delete_note(task_id: int):
@@ -365,12 +380,16 @@ def delete_note(task_id: int):
         
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
-        return {
-            "message": f"task {task_id} deleted successfully",
-            "tx_hash": tx_hash.hex()
-        }
+        if tx_receipt["status"] == 0:
+            raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")
+
+        return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
+    
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_message = str(e)
+        if "revert" in error_message:
+            error_message = error_message.split("revert")[-1].strip
+        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
 
 @app.post("/mark-completed/{task_id}")
 def mark_completed(task_id: int):
@@ -389,9 +408,13 @@ def mark_completed(task_id: int):
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
-        return {
-            "message": f"task {task_id} completed",
-            "tx_hash": tx_hash.hex()
-        }
+        if tx_receipt["status"] == 0:
+            raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")
+
+        return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
+    
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        error_message = str(e)
+        if "revert" in error_message:
+            error_message = error_message.split("revert")[-1].strip
+        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")

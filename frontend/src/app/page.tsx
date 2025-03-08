@@ -8,7 +8,11 @@ export default function Home() {
   const [account, setAccount] = useState(null);
   const [notes, setNotes] = useState([]);
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState("");  
+  const [editingNote, setEditingNote] = useState(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingContent, setEditingContent] = useState("");
+  
 
   // Fungsi untuk menghubungkan MetaMask
   const connectWallet = async () => {
@@ -96,6 +100,23 @@ export default function Home() {
     }
   };
 
+  const updateNote = async(taskId) => {
+    if(!editingTitle || !editingContent){
+      alert("Title dan Content harus diisi");
+      return;
+    }
+    try{
+      await api.post("/update-note",{task_id: taskId, new_title: editingTitle, new_content: editingContent});
+      setEditingNote(null);
+      setEditingTitle("");
+      setEditingContent("");
+      fetchNotes();
+    }catch (error){
+      console.error("Error updating note:", error);
+    }
+  }
+
+
   // Fungsi untuk menandai note sebagai selesai
   const markCompleted = async (taskId) => {
     try {
@@ -129,12 +150,8 @@ export default function Home() {
               Logout
             </button>
           </div>
-
         ) : (
-          <button
-            onClick={loginWithMetamask}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
-          >
+          <button onClick={loginWithMetamask} className="bg-blue-500 text-white px-4 py-2 rounded">
             Login with MetaMask
           </button>
         )}
@@ -156,10 +173,7 @@ export default function Home() {
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
-        <button
-          onClick={addNote}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
+        <button onClick={addNote} className="bg-blue-500 text-white px-4 py-2 rounded">
           Add Note
         </button>
       </div>
@@ -169,25 +183,45 @@ export default function Home() {
         {notes.length > 0 ? (
           notes.map((note) => (
             <div key={note.id} className="border p-4 rounded shadow">
-              <h2 className="text-xl font-bold">{note.title}</h2>
-              <p>{note.content}</p>
-              <p>Status: {note.completed ? "Completed ✅" : "Pending ⏳"}</p>
-              <div className="mt-2">
-                {!note.completed && (
-                  <button
-                    onClick={() => markCompleted(note.id)}
-                    className="bg-green-500 text-white px-4 py-2 rounded mr-2"
-                  >
-                    Complete
+              {editingNote === note.id ? (
+                <div>
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    className="border p-2 w-full mb-2"
+                  />
+                  <input
+                    type="text"
+                    value={editingContent}
+                    onChange={(e) => setEditingContent(e.target.value)}
+                    className="border p-2 w-full mb-2"
+                  />
+                  <button onClick={() => updateNote(note.id)} className="bg-green-500 text-white px-4 py-2 rounded">
+                    Save
                   </button>
-                )}
-                <button
-                  onClick={() => deleteNote(note.id)}
-                  className="bg-red-500 text-white px-4 py-2 rounded"
-                >
-                  Delete
-                </button>
-              </div>
+                  <button onClick={() => setEditingNote(null)} className="bg-gray-500 text-white px-4 py-2 rounded ml-2">
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-xl font-bold">{note.title}</h2>
+                  <p>{note.content}</p>
+                  <p>Status: {note.completed ? "Completed ✅" : "Pending ⏳"}</p>
+                  <div className="mt-2">
+                    {!note.completed && (
+                      <button onClick={() => markCompleted(note.id)} className="bg-green-500 text-white px-4 py-2 rounded mr-2">
+                        Complete
+                      </button>
+                    )}
+                    <button onClick={() => { setEditingNote(note.id); setEditingTitle(note.title); setEditingContent(note.content); }} className="bg-yellow-500 text-white px-4 py-2 rounded mr-2">Edit</button>
+                    <button onClick={() => deleteNote(note.id)} className="bg-red-500 text-white px-4 py-2 rounded">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         ) : (
@@ -196,4 +230,5 @@ export default function Home() {
       </div>
     </div>
   );
+
 }

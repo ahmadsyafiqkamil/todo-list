@@ -9,9 +9,13 @@ from eth_account import Account
 
 load_dotenv()
 
-RPC_URL = os.getenv("RPC_URL")
-PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
+# RPC_URL = os.getenv("RPC_URL")
+# PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+# CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
+
+RPC_URL = os.getenv("RPC_URL_SEPOLIA")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY_METAMASK")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS_SEPOLIA")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 if not w3.is_connected():
@@ -287,12 +291,13 @@ def add_note(request: NoteRequest):
     try:
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
+        gas_limit, gas_price = get_gas_parameters(contract.functions.addTask(request.note, request.title), sender_address)
 
         tx = contract.functions.addTask(request.note, request.title).build_transaction({
             "from": sender_address,
-            "nonce": w3.eth.get_transaction_count(sender_address),
-            "gas": 2000000,
-            "gasPrice": w3.to_wei("5","gwei")
+            "nonce": w3.eth.get_transaction_count(sender_address,"pending"),
+            "gas": gas_limit,
+            "gasPrice": gas_price
         })
 
         signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
@@ -317,11 +322,15 @@ def update_note(request: UpdateNoteRequest):
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
 
+        gas_limit, gas_price = get_gas_parameters(
+            contract.functions.updateTask(request.task_id, request.new_title, request.new_content), sender_address
+        )
+
         tx = contract.functions.updateTask(request.task_id, request.new_title, request.new_content ).build_transaction({
             "from": sender_address,
             "nonce": w3.eth.get_transaction_count(sender_address),
-            "gas": 3000000,
-            "gasPrice": w3.to_wei("5","gwei")
+            "gas": gas_limit,
+            "gasPrice": gas_price
         })
 
         signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
@@ -367,11 +376,12 @@ def delete_note(task_id: int):
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
 
+        gas_limit, gas_price = get_gas_parameters(contract.functions.deleteTask(task_id), sender_address)
         tx = contract.functions.deleteTask(task_id).build_transaction({
             "from": sender_address,
             "nonce": w3.eth.get_transaction_count(sender_address),
-            "gas": 2000000,
-            "gasPrice": w3.to_wei("5","gwei")
+            "gas": gas_limit,
+            "gasPrice": gas_price
         })
 
         signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
@@ -418,3 +428,38 @@ def mark_completed(task_id: int):
         if "revert" in error_message:
             error_message = error_message.split("revert")[-1].strip
         raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
+
+def get_gas_parameters(tx_function, sender_address, extra_gas=50000, extra_gwei=5):
+    """
+    Menghitung gas limit dan gas price secara otomatis.
+
+    Parameters:
+    - tx_function: Fungsi transaksi dari smart contract (contoh: contract.functions.addTask()).
+    - sender_address: Alamat pengirim transaksi.
+    - extra_gas: Tambahan gas untuk keamanan (default: 50.000 gas).
+    - extra_gwei: Tambahan gas price agar transaksi lebih cepat diproses (default: 5 Gwei).
+
+    Returns:
+    - gas_limit: Estimasi gas limit yang sudah ditambahkan buffer.
+    - gas_price: Gas price dalam wei yang sudah disesuaikan.
+    """
+
+    try:
+        # Estimasi gas yang dibutuhkan untuk transaksi
+        estimated_gas = tx_function.estimate_gas({"from": sender_address})
+
+        # Ambil gas price saat ini dari jaringan
+        current_gas_price = w3.eth.gas_price
+
+        # Tambahkan buffer untuk gas limit agar transaksi tidak gagal
+        gas_limit = estimated_gas + extra_gas
+
+        # Tambahkan buffer untuk gas price agar transaksi lebih cepat dikonfirmasi
+        gas_price = current_gas_price + w3.to_wei(extra_gwei, "gwei")
+
+        print(f"Estimasi Gas: {estimated_gas}, Gas Limit: {gas_limit}, Gas Price: {w3.from_wei(gas_price, 'gwei')} Gwei")
+
+        return gas_limit, gas_price
+
+    except Exception as e:
+        raise Exception(f"Error mendapatkan parameter gas: {str(e)}")

@@ -44,12 +44,37 @@ export default function Home() {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
+
+      // Periksa apakah MetaMask terhubung ke Sepolia
+    const network = await provider.getNetwork();
+    if (network.chainId !== 11155111) {
+      // await switchToSepolia();
+      alert("Please switch to Sepolia network in MetaMask.");
+      return;
+    }
+
+
       setAccount(address);
     } catch (error) {
       console.error("Error connecting to MetaMask:", error);
     }
   };
 
+  const switchToSepolia = async () => {
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0xAA36A7" }], // 11155111 dalam hex
+        });
+        alert("Switched to Sepolia successfully!");
+      } catch (switchError) {
+        console.error("Error switching to Sepolia:", switchError);
+      }
+    }
+  };
+
+  
   // Fungsi untuk login dengan MetaMask
   const loginWithMetamask = async () => {
     if (!window.ethereum) {

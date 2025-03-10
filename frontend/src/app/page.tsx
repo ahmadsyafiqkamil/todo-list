@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { api } from "../utils/api";
 import { ethers } from "ethers";
+import { Dialog, DialogActions, DialogContent, DialogTitle, Container, Box, Typography, Button, TextField, Card, CardContent, CardActions, Grid } from "@mui/material";
+
 
 export default function Home() {
   const [account, setAccount] = useState(null);
@@ -12,6 +14,8 @@ export default function Home() {
   const [editingNote, setEditingNote] = useState(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [editingContent, setEditingContent] = useState("");
+  const [openModal, setOpenModal] = useState(false);
+
   
 
   // Fungsi untuk menghubungkan MetaMask
@@ -119,6 +123,9 @@ export default function Home() {
 
   // Fungsi untuk menandai note sebagai selesai
   const markCompleted = async (taskId) => {
+    const confirmMark = window.confirm("Are you sure you want to mark complete this note?");
+    if (!confirmMark) return;
+
     try {
       await api.post(`/mark-completed/${taskId}`);
       fetchNotes();
@@ -128,107 +135,183 @@ export default function Home() {
   };
 
   // Fungsi untuk menghapus note
-  const deleteNote = async (taskId) => {
+  const deleteNote = async (taskId: number) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this note?");
+    if (!confirmDelete) return;
+  
     try {
       await api.delete(`/delete-note/${taskId}`);
       fetchNotes();
     } catch (error) {
       console.error("Error deleting note:", error);
+      alert("Failed to delete note. Please try again.");
     }
   };
 
+  const handleOpenModal = (note) => {
+    setEditingNote(note.id);
+    setEditingTitle(note.title);
+    setEditingContent(note.content);
+    setOpenModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+  };
+  
+
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold text-center mb-6">Web3 Notes App</h1>
+    <Container maxWidth="md">
+      <Box textAlign="center" my={4}>
+        <Typography variant="h4" fontWeight="bold">
+          Web3 Notes App
+        </Typography>
+      </Box>
 
       {/* Tombol Login MetaMask */}
-      <div className="flex justify-center mb-4">
+      <Box textAlign="center" mb={4}>
         {account ? (
-          <div className="flex items-center">
-            <p className="text-green-600 mr-4">Connected: {account}</p>
-            <button onClick={logout} className="bg-red-500 text-white px-4 py-2 rounded">
+          <Typography variant="h6" color="primary">
+            Connected: {account}{" "}
+            <Button variant="contained" color="error" onClick={logout} sx={{ ml: 2 }}>
               Logout
-            </button>
-          </div>
+            </Button>
+          </Typography>
         ) : (
-          <button onClick={loginWithMetamask} className="bg-blue-500 text-white px-4 py-2 rounded">
+          <Button variant="contained" color="primary" onClick={connectWallet}>
             Login with MetaMask
-          </button>
+          </Button>
         )}
-      </div>
+      </Box>
 
       {/* Form Tambah Note */}
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Title"
-          className="border p-2 mr-2 w-1/3"
+      <Box display="flex" flexDirection="column" gap={2} mb={4}>
+        <TextField
+          label="Title"
+          variant="outlined"
+          fullWidth
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        <input
-          type="text"
-          placeholder="Content"
-          className="border p-2 mr-2 w-1/3"
+        <TextField
+          label="Content"
+          variant="outlined"
+          fullWidth
+          multiline
+          rows={3}
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
-        <button onClick={addNote} className="bg-blue-500 text-white px-4 py-2 rounded">
+        <Button variant="contained" color="primary" onClick={addNote}>
           Add Note
-        </button>
-      </div>
+        </Button>
+      </Box>
 
-      {/* Daftar Note */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Daftar Notes */}
+      <Grid container spacing={2}>
         {notes.length > 0 ? (
           notes.map((note) => (
-            <div key={note.id} className="border p-4 rounded shadow">
-              {editingNote === note.id ? (
-                <div>
-                  <input
-                    type="text"
-                    value={editingTitle}
-                    onChange={(e) => setEditingTitle(e.target.value)}
-                    className="border p-2 w-full mb-2"
-                  />
-                  <input
-                    type="text"
-                    value={editingContent}
-                    onChange={(e) => setEditingContent(e.target.value)}
-                    className="border p-2 w-full mb-2"
-                  />
-                  <button onClick={() => updateNote(note.id)} className="bg-green-500 text-white px-4 py-2 rounded">
-                    Save
-                  </button>
-                  <button onClick={() => setEditingNote(null)} className="bg-gray-500 text-white px-4 py-2 rounded ml-2">
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <h2 className="text-xl font-bold">{note.title}</h2>
-                  <p>{note.content}</p>
-                  <p>Status: {note.completed ? "Completed ✅" : "Pending ⏳"}</p>
-                  <div className="mt-2">
-                    {!note.completed && (
-                      <button onClick={() => markCompleted(note.id)} className="bg-green-500 text-white px-4 py-2 rounded mr-2">
-                        Complete
-                      </button>
-                    )}
-                    <button onClick={() => { setEditingNote(note.id); setEditingTitle(note.title); setEditingContent(note.content); }} className="bg-yellow-500 text-white px-4 py-2 rounded mr-2">Edit</button>
-                    <button onClick={() => deleteNote(note.id)} className="bg-red-500 text-white px-4 py-2 rounded">
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <Grid item xs={12} sm={6} key={note.id}>
+              <Card>
+                <CardContent>
+                  {editingNote === note.id ? (
+                    <>
+                      <TextField
+                        label="Title"
+                        variant="outlined"
+                        fullWidth
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        sx={{ mb: 2 }}
+                      />
+                      <TextField
+                        label="Content"
+                        variant="outlined"
+                        fullWidth
+                        multiline
+                        rows={3}
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        sx={{ mb: 2 }}
+                      />
+                      <Button variant="contained" color="success" sx={{ mr: 1 }} onClick={() => updateNote(note.id)} >
+                        Save
+                      </Button>
+                      <Button variant="contained" color="warning" onClick={() => setEditingNote(null)}>
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Typography variant="h6">{note.title}</Typography>
+                      <Typography>{note.content}</Typography>
+                      <Typography color={note.completed ? "green" : "orange"}>
+                        Status: {note.completed ? "Completed ✅" : "Pending ⏳"}
+                      </Typography>
+                    </>
+                  )}
+                </CardContent>
+                <CardActions>
+                  {!note.completed && (
+                    <Button variant="contained" color="success" sx={{ mr: 1 }} onClick={() => markCompleted(note.id)} >
+                      Complete
+                    </Button>
+                  )}
+                  <Button
+                    variant="contained"
+                    color="warning"
+                    onClick={() => handleOpenModal(note)}
+                    sx={{ mr: 1 }}
+                  >
+                    Edit
+                  </Button>
+                  <Button variant="contained" color="error" onClick={() => deleteNote(note.id)}> Delete </Button>
+
+                </CardActions>
+              </Card>
+            </Grid>
           ))
         ) : (
-          <p>No notes available.</p>
+          <Typography>No notes available.</Typography>
         )}
-      </div>
-    </div>
-  );
+      </Grid>
 
+      {/* MODAL EDIT NOTE */}
+      <Dialog open={openModal} onClose={handleCloseModal}>
+        <DialogTitle>Edit Note</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Title"
+            variant="outlined"
+            fullWidth
+            value={editingTitle}
+            onChange={(e) => setEditingTitle(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Content"
+            variant="outlined"
+            fullWidth
+            multiline
+            rows={3}
+            value={editingContent}
+            onChange={(e) => setEditingContent(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModal} color="warning">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => updateNote(editingNote)}
+            color="primary"
+            variant="contained"
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+    </Container>
+  );
 }

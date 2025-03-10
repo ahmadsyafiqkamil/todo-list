@@ -7,7 +7,7 @@ import { Dialog, DialogActions, DialogContent, DialogTitle, Container, Box, Typo
 
 
 export default function Home() {
-  const [account, setAccount] = useState(null);
+  const [account, setAccount] = useState<string | null>(null);
   const [notes, setNotes] = useState([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");  
@@ -16,11 +16,27 @@ export default function Home() {
   const [editingContent, setEditingContent] = useState("");
   const [openModal, setOpenModal] = useState(false);
 
-  
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.ethereum) {
+      setAccount(localStorage.getItem("account"));
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  useEffect(() =>{
+    const savedAccount = localStorage.getItem("account")
+    if (savedAccount){
+      setAccount(savedAccount);
+    }
+  },[])
+
 
   // Fungsi untuk menghubungkan MetaMask
   const connectWallet = async () => {
-    if (!window.ethereum) {
+    if (typeof window === "undefined" || !window.ethereum) {
       alert("MetaMask is not installed");
       return;
     }
@@ -80,14 +96,6 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    fetchNotes();
-    const savedAccount = localStorage.getItem("account")
-    if (savedAccount){
-      setAccount(savedAccount);
-    }
-  }, []);
-
   // Fungsi untuk menambahkan note
   const addNote = async () => {
     if (!title || !content) {
@@ -120,7 +128,6 @@ export default function Home() {
       console.error("Error updating note:", error);
     }
   }
-
 
   // Fungsi untuk menandai note sebagai selesai
   const markCompleted = async (taskId) => {

@@ -115,6 +115,7 @@ export default function Home() {
       setEditingTitle("");
       setEditingContent("");
       fetchNotes();
+      handleCloseModal();
     }catch (error){
       console.error("Error updating note:", error);
     }
@@ -214,34 +215,7 @@ export default function Home() {
             <Grid item xs={12} sm={6} key={note.id}>
               <Card>
                 <CardContent>
-                  {editingNote === note.id ? (
-                    <>
-                      <TextField
-                        label="Title"
-                        variant="outlined"
-                        fullWidth
-                        value={editingTitle}
-                        onChange={(e) => setEditingTitle(e.target.value)}
-                        sx={{ mb: 2 }}
-                      />
-                      <TextField
-                        label="Content"
-                        variant="outlined"
-                        fullWidth
-                        multiline
-                        rows={3}
-                        value={editingContent}
-                        onChange={(e) => setEditingContent(e.target.value)}
-                        sx={{ mb: 2 }}
-                      />
-                      <Button variant="contained" color="success" sx={{ mr: 1 }} onClick={() => updateNote(note.id)} >
-                        Save
-                      </Button>
-                      <Button variant="contained" color="warning" onClick={() => setEditingNote(null)}>
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
+                  
                     <>
                       <Typography variant="h6">{note.title}</Typography>
                       <Typography>{note.content}</Typography>
@@ -249,7 +223,7 @@ export default function Home() {
                         Status: {note.completed ? "Completed ✅" : "Pending ⏳"}
                       </Typography>
                     </>
-                  )}
+                  
                 </CardContent>
                 <CardActions>
                   {!note.completed && (

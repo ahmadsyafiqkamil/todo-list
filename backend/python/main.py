@@ -9,13 +9,13 @@ from eth_account import Account
 
 load_dotenv()
 
-# RPC_URL = os.getenv("RPC_URL")
-# PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-# CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
+RPC_URL = os.getenv("RPC_URL")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
 
-RPC_URL = os.getenv("RPC_URL_SEPOLIA")
-PRIVATE_KEY = os.getenv("PRIVATE_KEY_METAMASK")
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS_SEPOLIA")
+# RPC_URL = os.getenv("RPC_URL_SEPOLIA")
+# PRIVATE_KEY = os.getenv("PRIVATE_KEY_METAMASK")
+# CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS_SEPOLIA")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 if not w3.is_connected():
@@ -291,11 +291,18 @@ def add_note(request: NoteRequest):
     try:
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
+
+        balance = check_balance(sender_address)
+        if balance < 0.01:
+            raise HTTPException(status_code=400, detail="Insufficient balance to pay gas fee")
+        
         gas_limit, gas_price = get_gas_parameters(contract.functions.addTask(request.note, request.title), sender_address)
+
+        nonce = w3.eth.get_transaction_count(sender_address, "pending")
 
         tx = contract.functions.addTask(request.note, request.title).build_transaction({
             "from": sender_address,
-            "nonce": w3.eth.get_transaction_count(sender_address,"pending"),
+            "nonce": nonce,
             "gas": gas_limit,
             "gasPrice": gas_price
         })
@@ -322,13 +329,18 @@ def update_note(request: UpdateNoteRequest):
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
 
+        balance = check_balance(sender_address)
+        if balance < 0.01:
+            raise HTTPException(status_code=400, detail="Insufficient balance to pay gas fee")
+        
         gas_limit, gas_price = get_gas_parameters(
             contract.functions.updateTask(request.task_id, request.new_title, request.new_content), sender_address
         )
 
+        nonce = w3.eth.get_transaction_count(sender_address, "pending")
         tx = contract.functions.updateTask(request.task_id, request.new_title, request.new_content ).build_transaction({
             "from": sender_address,
-            "nonce": w3.eth.get_transaction_count(sender_address),
+            "nonce": nonce,
             "gas": gas_limit,
             "gasPrice": gas_price
         })
@@ -376,10 +388,15 @@ def delete_note(task_id: int):
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
 
+        balance = check_balance(sender_address)
+        if balance < 0.01:
+            raise HTTPException(status_code=400, detail="Insufficient balance to pay gas fee")
+
         gas_limit, gas_price = get_gas_parameters(contract.functions.deleteTask(task_id), sender_address)
+        nonce = w3.eth.get_transaction_count(sender_address, "pending")
         tx = contract.functions.deleteTask(task_id).build_transaction({
             "from": sender_address,
-            "nonce": w3.eth.get_transaction_count(sender_address),
+            "nonce": nonce,
             "gas": gas_limit,
             "gasPrice": gas_price
         })
@@ -407,11 +424,18 @@ def mark_completed(task_id: int):
         account = Account.from_key(PRIVATE_KEY)
         sender_address = account.address
 
+        balance = check_balance(sender_address)
+        if balance < 0.01:
+            raise HTTPException(status_code=400, detail="Insufficient balance to pay gas fee")
+
+        gas_limit, gas_price = get_gas_parameters(contract.functions.completeTask(task_id), sender_address)
+        nonce = w3.eth.get_transaction_count(sender_address, "pending")
+
         tx = contract.functions.completeTask(task_id).build_transaction({
             "from": sender_address,
-            "nonce": w3.eth.get_transaction_count(sender_address),
-            "gas": 2000000,
-            "gasPrice": w3.to_wei("5","gwei")
+            "nonce": nonce,
+            "gas": gas_limit,
+            "gasPrice": gas_price
         })
 
         signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
@@ -463,3 +487,28 @@ def get_gas_parameters(tx_function, sender_address, extra_gas=50000, extra_gwei=
 
     except Exception as e:
         raise Exception(f"Error mendapatkan parameter gas: {str(e)}")
+
+
+def check_balance(address):
+    """
+    Mengecek saldo ETH dari alamat yang diberikan.
+
+    Parameters:
+    - address: Alamat Ethereum yang akan diperiksa saldonya.
+
+    Returns:
+    - balance_eth: Saldo ETH dalam satuan Ether.
+    """
+
+    try:
+        balance_wei = w3.eth.get_balance(address)  # Dapatkan saldo dalam Wei
+        balance_eth = w3.from_wei(balance_wei, "ether")  # Konversi ke ETH
+
+        print(f"Saldo {address}: {balance_eth} ETH")
+
+        return balance_eth
+
+    except Exception as e:
+        raise Exception(f"Error mendapatkan saldo: {str(e)}")
+
+    

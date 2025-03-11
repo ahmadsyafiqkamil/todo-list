@@ -46,12 +46,12 @@ export default function Home() {
       const address = await signer.getAddress();
 
       // Periksa apakah MetaMask terhubung ke Sepolia
-    const network = await provider.getNetwork();
-    if (network.chainId !== 11155111) {
-      // await switchToSepolia();
-      alert("Please switch to Sepolia network in MetaMask.");
-      return;
-    }
+    // const network = await provider.getNetwork();
+    // if (network.chainId !== 11155111) {
+    //   // await switchToSepolia();
+    //   alert("Please switch to Sepolia network in MetaMask.");
+    //   return;
+    // }
 
 
       setAccount(address);

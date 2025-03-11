@@ -26,7 +26,7 @@ Web3 Notes App is a decentralized note-taking application built with **Next.js**
 
 ### 1. Clone the Repository
 ```bash
-[git clone https://github.com/your-username/web3-notes-app.git](https://github.com/ahmadsyafiqkamil/todo-list.git)
+https://github.com/ahmadsyafiqkamil/todo-list.git
 cd web3-notes-app
 ```
 

@@ -1,3 +1,5 @@
+# https://chatgpt.com/c/67d737f6-ae58-8012-b614-17f94eaf255f
+
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,13 +11,13 @@ from eth_account import Account
 
 load_dotenv()
 
-# RPC_URL = os.getenv("RPC_URL")
-# PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-# CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
+RPC_URL = os.getenv("RPC_URL")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
 
-RPC_URL = os.getenv("RPC_URL_SEPOLIA")
-PRIVATE_KEY = os.getenv("PRIVATE_KEY_METAMASK")
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS_SEPOLIA")
+# RPC_URL = os.getenv("RPC_URL_SEPOLIA")
+# PRIVATE_KEY = os.getenv("PRIVATE_KEY_METAMASK")
+# CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS_SEPOLIA")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 if not w3.is_connected():
@@ -250,6 +252,7 @@ allow_origins=["http://localhost:3000"],  # URL Next.js
 class NoteRequest(BaseModel):
     title: str
     note: str
+    
 
 class AuthWithMetamask(BaseModel):
     address: str
@@ -308,9 +311,7 @@ def add_note(request: NoteRequest):
         })
 
         signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
-
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         if tx_receipt["status"] == 0:
             raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")

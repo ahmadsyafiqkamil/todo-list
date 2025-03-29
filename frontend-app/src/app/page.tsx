@@ -38,7 +38,8 @@ export default function Home() {
             <p className="text-sm text-muted-foreground">Terhubung sebagai: {userAddress}</p>
             <Button variant="outline" onClick={handleLogout}>Logout</Button>
           </div>
-          <NoteList />
+          {/* <NoteList /> */}
+          <NoteList address={userAddress} />
         </>
       )}
     </main>

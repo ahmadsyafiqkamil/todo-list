@@ -1,13 +1,14 @@
 # https://chatgpt.com/c/67d737f6-ae58-8012-b614-17f94eaf255f
 
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from web3 import Web3
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from eth_account.messages import encode_defunct
 from eth_account import Account
+
 
 load_dotenv()
 
@@ -249,10 +250,11 @@ allow_origins=["http://localhost:3000"],  # URL Next.js
     allow_headers=["*"],
 )
 
-class NoteRequest(BaseModel):
+class AddNoteRequest(BaseModel):
     title: str
     note: str
-    
+    sender: str  # address user
+
 
 class AuthWithMetamask(BaseModel):
     address: str
@@ -263,6 +265,13 @@ class UpdateNoteRequest(BaseModel):
     task_id: int
     new_title: str
     new_content: str
+    sender: str
+
+class DeleteNoteRequest(BaseModel):
+    task_id: int
+    sender: str
+
+
    
 @app.get("/")
 def home():
@@ -290,91 +299,74 @@ def login_with_metamask(data: AuthWithMetamask):
 
 
 @app.post("/add-note")
-def add_note(request: NoteRequest):
+def add_note(request: AddNoteRequest):
     try:
-        account = Account.from_key(PRIVATE_KEY)
-        sender_address = account.address
+        sender = request.sender
 
-        balance = check_balance(sender_address)
+        balance = check_balance(sender)
         if balance < 0.01:
-            raise HTTPException(status_code=400, detail="Insufficient balance to pay gas fee")
-        
-        gas_limit, gas_price = get_gas_parameters(contract.functions.addTask(request.note, request.title), sender_address)
+            raise HTTPException(status_code=400, detail="Saldo tidak cukup untuk gas")
 
-        nonce = w3.eth.get_transaction_count(sender_address, "latest")
+        gas_limit, gas_price = get_gas_parameters(
+            contract.functions.addTask(request.note, request.title),
+            sender
+        )
+
+        nonce = w3.eth.get_transaction_count(sender)
 
         tx = contract.functions.addTask(request.note, request.title).build_transaction({
-            "from": sender_address,
+            "from": sender,
+            "to": CONTRACT_ADDRESS,
             "nonce": nonce,
             "gas": gas_limit,
             "gasPrice": gas_price
         })
 
-        signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        if tx_receipt["status"] == 0:
-            raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")
-
-        return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
-    
+        return {"tx": tx}  # Raw tx akan dikirim ke frontend
     except Exception as e:
-        error_message = str(e)
-        if "revert" in error_message:
-            error_message = error_message.split("revert")[-1].strip
-        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 
 @app.post("/update-note")
 def update_note(request: UpdateNoteRequest):
     try:
-        account = Account.from_key(PRIVATE_KEY)
-        sender_address = account.address
+        sender_address = request.sender
 
         balance = check_balance(sender_address)
         if balance < 0.01:
-            raise HTTPException(status_code=400, detail="Insufficient balance to pay gas fee")
-        
+            raise HTTPException(status_code=400, detail="Insufficient balance")
+
         gas_limit, gas_price = get_gas_parameters(
-            contract.functions.updateTask(request.task_id, request.new_title, request.new_content), sender_address
+            contract.functions.updateTask(request.task_id, request.new_title, request.new_content),
+            sender_address
         )
 
         nonce = w3.eth.get_transaction_count(sender_address, "latest")
-        tx = contract.functions.updateTask(request.task_id, request.new_title, request.new_content ).build_transaction({
+
+        tx = contract.functions.updateTask(
+            request.task_id, request.new_title, request.new_content
+        ).build_transaction({
             "from": sender_address,
             "nonce": nonce,
             "gas": gas_limit,
             "gasPrice": gas_price
         })
 
-        signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        
-        if tx_receipt["status"] == 0:
-            raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")
+        return {"tx": tx}
 
-        return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
     except Exception as e:
-        error_message = str(e)
-        if "revert" in error_message:
-            error_message = error_message.split("revert")[-1].strip
-        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/get-notes")
-def get_notes():
+
+@app.get("/get-notes/{user_address}")
+def get_notes(user_address: str):
     try:
-        account = Account.from_key(PRIVATE_KEY)
-        sender_address = account.address
-        # Panggil fungsi smart contract `getTasks()`
-        tasks = contract.functions.getTasks().call({"from":sender_address})
+        # gunakan address dari path, bukan PRIVATE_KEY
+        tasks = contract.functions.getTasks().call({"from": user_address})
 
-        if not tasks:
-            return {"notes":[]}
-
-        # Konversi hasil ke format JSON-friendly
-        notes = [{"id": task[0], "title": task[1], "content": task[2], "completed": task[3]} for task in tasks]
-
+        notes = [{"id": t[0], "title": t[1], "content": t[2], "completed": t[3]} for t in tasks]
         return {"notes": notes}
 
     except Exception as e:
@@ -382,42 +374,32 @@ def get_notes():
         if "revert" in error_message:
             error_message = error_message.split("revert")[-1].strip
         raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
-    
-@app.delete("/delete-note/{task_id}")
-def delete_note(task_id: int):
+
+
+@app.post("/delete-note")
+def delete_note(task_id: int, sender: str):
     try:
-        account = Account.from_key(PRIVATE_KEY)
-        sender_address = account.address
-
-        balance = check_balance(sender_address)
+        balance = check_balance(sender)
         if balance < 0.01:
-            raise HTTPException(status_code=400, detail="Insufficient balance to pay gas fee")
+            raise HTTPException(status_code=400, detail="Insufficient balance")
 
-        gas_limit, gas_price = get_gas_parameters(contract.functions.deleteTask(task_id), sender_address)
-        nonce = w3.eth.get_transaction_count(sender_address, "latest")
+        gas_limit, gas_price = get_gas_parameters(
+            contract.functions.deleteTask(task_id), sender
+        )
+        nonce = w3.eth.get_transaction_count(sender, "latest")
+
         tx = contract.functions.deleteTask(task_id).build_transaction({
-            "from": sender_address,
+            "from": sender,
             "nonce": nonce,
             "gas": gas_limit,
             "gasPrice": gas_price
         })
 
-        signed_tx = Account.sign_transaction(tx, PRIVATE_KEY)
+        return {"tx": tx}
 
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
-        
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-
-        if tx_receipt["status"] == 0:
-            raise HTTPException(status_code=400, detail="Transaction failed: Smart contract reverted")
-
-        return {"message": "Transaction successful", "tx_hash": tx_hash.hex()}
-    
     except Exception as e:
-        error_message = str(e)
-        if "revert" in error_message:
-            error_message = error_message.split("revert")[-1].strip
-        raise HTTPException(status_code=400, detail=f"Transaction error: {error_message}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 @app.post("/mark-completed/{task_id}")
 def mark_completed(task_id: int):
